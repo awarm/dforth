@@ -456,7 +456,7 @@ TEST_CASE("store", "[store]")
 {
     forth_context* ctx = forth_create_context();
 
-    evalTestSection(ctx, "!", FORTH_FAILURE, {}, "Unimplemented\n");
+    evalTestSection(ctx, "3 HERE 0 , DUP ROT SWAP ! @ .", FORTH_SUCCESS, {}, "3 ");
 
     forth_destroy_context(ctx);
 }
@@ -668,7 +668,7 @@ TEST_CASE("comma", "[comma]")
 {
     forth_context* ctx = forth_create_context();
 
-    evalTestSection(ctx, ",", FORTH_FAILURE, {}, "Unimplemented\n");
+    evalTestSection(ctx, "3 HERE 0 , DUP ROT SWAP ! @ . ", FORTH_SUCCESS, {}, "3 ");
 
     forth_destroy_context(ctx);
 }
@@ -1353,7 +1353,7 @@ TEST_CASE("fetch", "[fetch]")
 {
     forth_context* ctx = forth_create_context();
 
-    evalTestSection(ctx, "@", FORTH_FAILURE, {}, "Unimplemented\n");
+    evalTestSection(ctx, "3 HERE 3 , DUP ROT SWAP ! @ . ", FORTH_SUCCESS, {}, "3 ");
 
     forth_destroy_context(ctx);
 }
@@ -1781,9 +1781,11 @@ TEST_CASE("compile_comma", "[compile_comma]")
 TEST_CASE("CONSTANT", "[CONSTANT]")
 {
     forth_context* ctx = forth_create_context();
-
-    evalTestSection(ctx, "CONSTANT", FORTH_FAILURE, {}, "Unimplemented\n");
-
+    evalTest(ctx, "123 CONSTANT X123", FORTH_SUCCESS, {});
+    evalTest(ctx, "X123", FORTH_SUCCESS, { 123 });
+    evalTest(ctx, ": EQU CONSTANT ; DROP", FORTH_SUCCESS, {});
+    evalTest(ctx, "X123 EQU Y123", FORTH_SUCCESS, {});
+    evalTest(ctx, "Y123", FORTH_SUCCESS, {123});
     forth_destroy_context(ctx);
 }
 
@@ -3945,7 +3947,12 @@ TEST_CASE("r_fetch", "[r_fetch]")
 {
     forth_context* ctx = forth_create_context();
 
-    evalTestSection(ctx, "R@", FORTH_FAILURE, {}, "Unimplemented\n");
+    evalTestSection(ctx, "R@", FORTH_FAILURE, {}, "Return stack underflow\n");
+    evalTestSection(ctx, "1 >R R@ R>", FORTH_SUCCESS, {1, 1});
+    evalTestSection(ctx, "1 2 >R R@ R>", FORTH_SUCCESS, {1, 2, 2});
+    // evalTestSection(ctx, "1 >R 2 >R R> R>", FORTH_SUCCESS, {2, 1});
+    // evalTestSection(ctx, "1 2 >R >R R> R>", FORTH_SUCCESS, {1, 2});
+
 
     forth_destroy_context(ctx);
 }
