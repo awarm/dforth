@@ -68,6 +68,7 @@ extern "C"
 
 #include <inttypes.h>
 #include <stdlib.h>
+#include <string.h>
 
 #define FORTH_FAILURE 0
 #define FORTH_SUCCESS 1
@@ -1028,8 +1029,11 @@ int forth_eval(forth_context* ctx, const char* code)
 
 static int forthi_word_store(forth_context* ctx)
 {
-    FORTH_LOG(ctx, "Unimplemented\n");
-    return FORTH_FAILURE;
+    if (forthi_pop(ctx, 2) == FORTH_FAILURE)
+        return FORTH_FAILURE;
+    forth_int n = ctx->stack[ctx->stack_pointer].int_value;
+    forth_pointer mem_pointer = ctx->stack[ctx->stack_pointer + 1].pointer_value;
+    return forthi_write_number_at(ctx, n, mem_pointer);
 }
 
 static int forthi_word_number_sign(forth_context* ctx)
@@ -1249,8 +1253,12 @@ static int forthi_word_plus_x_string(forth_context* ctx)
 
 static int forthi_word_comma(forth_context* ctx)
 {
-    FORTH_LOG(ctx, "Unimplemented\n");
+    if (forthi_pop(ctx, 1) == FORTH_FAILURE)
     return FORTH_FAILURE;
+    forth_int f = ctx->stack[ctx->stack_pointer].int_value;
+    if (forthi_write_number(ctx, f) == FORTH_FAILURE)
+            return FORTH_FAILURE;
+    return FORTH_SUCCESS;
 }
 
 static int forthi_word_minus(forth_context* ctx)
@@ -1756,8 +1764,13 @@ static int forthi_word_question_dupe(forth_context* ctx)
 
 static int forthi_word_fetch(forth_context* ctx)
 {
-    FORTH_LOG(ctx, "Unimplemented\n");
+    if (forthi_pop(ctx, 1) == FORTH_FAILURE)
     return FORTH_FAILURE;
+    forth_pointer mem_pointer = ctx->stack[ctx->stack_pointer].pointer_value;
+    forth_int n;
+    if (forthi_read_number_at(ctx,&n,mem_pointer) == FORTH_FAILURE)
+        return FORTH_FAILURE;
+    return forthi_push_int_number(ctx,n);
 }
 
 static int forthi_word_ABORT(forth_context* ctx)
@@ -1786,13 +1799,13 @@ static int forthi_word_abort_quote(forth_context* ctx)
             return FORTH_FAILURE;
 
         forth_int number = ctx->stack[ctx->stack_pointer].int_value;
-        if (number == FORTH_FALSE)
-            return FORTH_SUCCESS;
-
         forth_int len;
         const char* text = forthi_read_text(ctx, &len);
         if (text == NULL)
             return FORTH_FAILURE;
+
+        if (number == FORTH_FALSE)
+            return FORTH_SUCCESS;
 
         FORTH_LOG(ctx, "%.*s", (unsigned int)len, text);
         return FORTH_FAILURE;
@@ -2093,8 +2106,20 @@ static int forthi_word_compile_comma(forth_context* ctx)
 
 static int forthi_word_CONSTANT(forth_context* ctx)
 {
-    FORTH_LOG(ctx, "Unimplemented\n");
-    return FORTH_FAILURE;
+    if (forthi_pop(ctx, 1) == FORTH_FAILURE)
+        return FORTH_FAILURE;
+
+    forth_pointer memory_pointer = ctx->memory_pointer;
+    if (forthi_write_byte(ctx, FORTHI_INST_EXECUTE) == FORTH_FAILURE)
+        return FORTH_FAILURE;
+    forth_int n = ctx->stack[ctx->stack_pointer].int_value;
+    if (forthi_compile_push_int_number(ctx,n) == FORTH_FAILURE)
+        return FORTH_FAILURE;
+    if (forthi_write_pointer(ctx, 0) == FORTH_FAILURE)
+            return FORTH_FAILURE;
+    size_t wlen =0;
+    const char* word = forthi_get_next_token(ctx, &wlen);
+    return forthi_add_word(ctx,word,wlen,memory_pointer);
 }
 
 static int forthi_word_COUNT(forth_context* ctx)
@@ -2562,6 +2587,10 @@ static int forthi_word_EXECUTE(forth_context* ctx)
                 return FORTH_FAILURE;
 
             ctx->program_pointer = pointer;
+        }else if (inst == FORTHI_INST_RETURN){
+            if (forthi_pop_return(ctx, 1) == FORTH_FAILURE)
+                return FORTH_FAILURE;
+            ctx->program_pointer = ctx->return_stack[ctx->return_stack_pointer].pointer_value;
         }
     }
 
@@ -3794,8 +3823,12 @@ static int forthi_word_r_from(forth_context* ctx)
 
 static int forthi_word_r_fetch(forth_context* ctx)
 {
-    FORTH_LOG(ctx, "Unimplemented\n");
-    return FORTH_FAILURE;
+    if (ctx->return_stack_pointer < 1)
+    {
+        FORTH_LOG(ctx, "Return stack underflow\n");
+        return FORTH_FAILURE;
+    }
+    return forthi_push_pointer(ctx, ctx->return_stack[ctx->return_stack_pointer-1].pointer_value);
 }
 
 static int forthi_word_READ_FILE(forth_context* ctx)
